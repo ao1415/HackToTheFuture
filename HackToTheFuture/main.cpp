@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <vector>
 #include <stack>
+#include <map>
 
 using namespace std;
 
@@ -107,65 +108,25 @@ const int range(int dx, int dy, int h) {
 	return max(0, h - r);
 }
 
+void show(const Grid& grid) {
+
+	for (int y = 0; y < N; y++)
+	{
+		for (int x = 0; x < N; x++)
+		{
+			cout << grid[y][x] << " ";
+		}
+		cout << endl;
+	}
+
+}
+
 const int directionX[] = { 0,-1,1,0 };
 const int directionY[] = { -1,0,0,1 };
 
-Grid labeling(const Grid& input) {
+Grid subMountain(int x, int y, int h, const Grid& table) {
 
-	Grid label(0);
-	Grid check(0);
-
-	int count = 1;
-	for (int x = 0; x < N; x++)
-	{
-		for (int y = 0; y < N; y++)
-		{
-			if (check[y][x] == 0)
-			{
-				if (input[y][x] != 0)
-				{
-					stack<Point> sta;
-					sta.push(Point(x, y, count));
-					check[y][x] = 1;
-					label[y][x] = count;
-					count++;
-
-					while (!sta.empty())
-					{
-						const auto pos = sta.top();
-						sta.pop();
-
-
-						for (int i = 0; i < 4; i++)
-						{
-							const int posx = pos.x + directionX[i];
-							const int posy = pos.y + directionY[i];
-
-							if (inside(posx) && inside(posy))
-							{
-								if (check[posy][posx] == 0 && input[posy][posx] != 0)
-								{
-									sta.push(Point(posx, posy, pos.h));
-									check[posy][posx] = 1;
-									label[posy][posx] = pos.h;
-								}
-							}
-
-						}
-
-					}
-
-				}
-			}
-		}
-	}
-
-	return label;
-}
-
-Grid subMountain(int x, int y, int h, const Grid& map) {
-
-	Grid next(map);
+	Grid next(table);
 
 	const int r = h - 1;
 
@@ -178,12 +139,37 @@ Grid subMountain(int x, int y, int h, const Grid& map) {
 
 			if (inside(px) && inside(py))
 			{
-				next[y][x] -= range(dx, dy, h);
+				next[py][px] -= range(dx, dy, h);
 			}
 		}
 	}
 
 	return next;
+}
+
+const int subPower(int x, int y, int h, const Grid& table) {
+
+	const int power = clamp(h);
+
+	const int r = power - 1;
+	int diff = 0;
+
+	for (int dy = -r; dy <= r; dy++)
+	{
+		for (int dx = -r; dx <= r; dx++)
+		{
+			int px = x + dx;
+			int py = y + dy;
+
+			if (inside(px) && inside(py))
+			{
+				const int sub = table[py][px] - range(dx, dy, power);
+				diff = min(diff, sub);
+			}
+		}
+	}
+
+	return power + diff;
 }
 
 int main() {
@@ -198,40 +184,41 @@ int main() {
 		}
 	}
 
-	priority_queue<Point> que;
 
-	for (int y = 0; y < N; y++)
+	Answer ans;
+
+	auto next = input;
+	for (int i = 0; i < 1000; i++)
 	{
-		for (int x = 0; x < N; x++)
+		priority_queue<Point> que;
+		Point top(0, 0, 0);
+
+		for (int y = 0; y < N; y++)
 		{
-			que.push(Point(x, y, input[y][x]));
+			for (int x = 0; x < N; x++)
+			{
+				if (top.h < next[y][x])
+				{
+					top.x = x;
+					top.y = y;
+					top.h = next[y][x];
+				}
+			}
 		}
+
+		if (top.h == 0) break;
+
+		int power = subPower(top.x, top.y, top.h, next);
+
+		ans.push_back(format(top.x, top.y, power));
+		next = subMountain(top.x, top.y, power, next);
 	}
 
-	const auto output = [&]() {
-
-		Answer ans;
-		for (int i = 0; i < 10; i++)
-		{
-			const auto cell = que.top();
-			que.pop();
-
-			int h = clamp(cell.h);
-
-			ans.push_back(format(cell.x, cell.y, h));
-
-		}
-
-		cout << ans.size() << endl;
-		for (const auto& s : ans)
-		{
-			cout << s << endl;
-		}
-
-	};
-
-	//debug();
-	output();
+	cout << ans.size() << endl;
+	for (const auto& s : ans)
+	{
+		cout << s << endl;
+	}
 
 	return 0;
 }
