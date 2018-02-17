@@ -6,6 +6,7 @@
 #include <vector>
 #include <stack>
 #include <map>
+#include <cmath>
 
 using namespace std;
 
@@ -90,6 +91,9 @@ struct Point {
 	const bool operator<(const Point& other) const {
 		return h < other.h;
 	}
+	const bool operator==(const Point& o) const {
+		return (x == o.x && y == o.y);
+	}
 
 };
 
@@ -152,7 +156,7 @@ const int subPower(int x, int y, int h, const Grid& table, int turn) {
 
 	const int power = clamp(h);
 
-	const int r = power - 1;
+	const int mr = power - 1;
 	int diff = 0;
 
 	const auto getScore = [&](int r) {
@@ -160,30 +164,39 @@ const int subPower(int x, int y, int h, const Grid& table, int turn) {
 		//全体的な差分
 		//小さいほど理想的になる
 		//そのうちターン係数など入れるかも
-		int score = 0;
+		double score = 0;
 
-		const double c = max((1000 - turn) / 20, 1);
+		const double c = max((1000 - turn) / 20.0, 1.0);
 
 		for (int yy = 0; yy < N; yy++)
 		{
 			for (int xx = 0; xx < N; xx++)
 			{
 				//差分を求める
-				int sub = table[yy][xx] - range(x - xx, y - yy, r + 1);
-				if (sub < 0) sub *= c;
-				score += abs(sub);
+				double sub = table[yy][xx] - range(x - xx, y - yy, r + 1);
+
+				if (r >= 65)
+				{
+					if (sub < 0) sub *= 100000;
+					score += abs(sub);
+				}
+				else
+				{
+					if (sub < 0) sub *= c;
+					score += abs(sub);
+				}
 			}
 		}
 
 		return score;
 	};
 
-	int minScore = getScore(r);
-	int best = r;
-	for (int p = r - 1; p >= 0; p--)
+	double minScore = getScore(mr);
+	int best = mr;
+	for (int p = mr - 1; p >= 0; p--)
 	{
-		const int score = getScore(p);
-		if (minScore > score)
+		const double score = getScore(p);
+		if (minScore >= score)
 		{
 			minScore = score;
 			best = p;
@@ -191,6 +204,22 @@ const int subPower(int x, int y, int h, const Grid& table, int turn) {
 	}
 
 	return best + 1;
+}
+
+int result(const Grid& table, int t) {
+
+	int score = 200000000;
+
+	for (int y = 0; y < N; y++)
+	{
+		for (int x = 0; x < N; x++)
+		{
+			score -= abs(table[y][x]);
+			//if (table[y][x] < -100) cout << t << ":" << table[y][x] << endl;
+		}
+	}
+
+	return score;
 }
 
 int main() {
@@ -206,39 +235,97 @@ int main() {
 	}
 
 
-	Answer ans;
+	struct Data {
+		int score;
+		Grid table;
+		Answer ans;
 
-	auto next = input;
-	for (int i = 0; i < 1000; i++)
+		const bool operator<(const Data& o) const {
+			return score < o.score;
+		}
+	};
+
+	priority_queue<Data> que;
+	que.push(Data{ result(input,0),input ,Answer() });
+
+	for (int t = 0; t < 1000; t++)
 	{
-		priority_queue<Point> que;
-		Point top(0, 0, 0);
+		priority_queue<Data> next;
 
-		for (int y = 0; y < N; y++)
+		for (int i = 0; i < 1; i++)
 		{
-			for (int x = 0; x < N; x++)
+			if (!que.empty())
 			{
-				if (top.h < next[y][x])
+				const auto top = que.top();
+				que.pop();
+
+				priority_queue<Point> topList;
+
+				Point max1(0, 0, 0);
+				Point max2(0, 0, 0);
+				for (int y = 0; y < N; y++)
 				{
-					top.x = x;
-					top.y = y;
-					top.h = next[y][x];
+					for (int x = 0; x < N; x++)
+					{
+						if (max1.h < top.table[y][x])
+						{
+							max1.x = x;
+							max1.y = y;
+							max1.h = top.table[y][x];
+						}
+						if (max2.h <= top.table[y][x])
+						{
+							max2.x = x;
+							max2.y = y;
+							max2.h = top.table[y][x];
+							topList.push(max2);
+						}
+					}
 				}
+
+				{
+					vector<Point> list;
+					while (!topList.empty())
+					{
+						if (topList.top().h != max1.h) break;
+
+						list.push_back(topList.top());
+						topList.pop();
+					}
+					max2 = list[list.size() / 2];
+				}
+
+				{
+					const int h = subPower(max1.x, max1.y, max1.h, top.table, t);
+					const auto& table = subMountain(max1.x, max1.y, h, top.table);
+					const int score = result(table, t);
+					Answer ans = top.ans;
+					ans.push_back(format(max1.x, max1.y, h));
+					next.push(Data{ score,table, ans });
+				}
+				if (!(max1 == max2)) {
+					const int h = subPower(max2.x, max2.y, max2.h, top.table, t);
+					const auto& table = subMountain(max2.x, max2.y, h, top.table);
+					const int score = result(table, t);
+					Answer ans = top.ans;
+					ans.push_back(format(max2.x, max2.y, h));
+					next.push(Data{ score,table, ans });
+				}
+
 			}
 		}
-
-		if (top.h == 0) break;
-
-		int power = subPower(top.x, top.y, top.h, next, i);
-
-		ans.push_back(format(top.x, top.y, power));
-		next = subMountain(top.x, top.y, power, next);
+		que.swap(next);
 	}
 
-	cout << ans.size() << endl;
-	for (const auto& s : ans)
 	{
-		cout << s << endl;
+		const auto& ans = que.top().ans;
+
+		cout << ans.size() << endl;
+		for (const auto& s : ans)
+		{
+			cout << s << endl;
+		}
+
 	}
 
 	return 0;
