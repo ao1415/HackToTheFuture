@@ -121,6 +121,18 @@ void show(const Grid& grid) {
 	}
 
 }
+void showInput(const Grid& grid) {
+
+	for (int y = 0; y < N; y++)
+	{
+		for (int x = 0; x < N; x++)
+		{
+			cout << -grid[y][x] << "\t";
+		}
+		cout << endl;
+	}
+
+}
 
 const int directionX[] = { 0,-1,1,0 };
 const int directionY[] = { -1,0,0,1 };
@@ -205,41 +217,20 @@ int main() {
 		}
 	}
 
+	input.fill(0);
 
-	Answer ans;
+	input = subMountain(17, 1, 4, input);
+	input = subMountain(7, 17, 19, input);
+	input = subMountain(19, 20, 1, input);
+	input = subMountain(1, 7, 14, input);
+	input = subMountain(1, 5, 5, input);
+	input = subMountain(20, 15, 1, input);
+	input = subMountain(17, 5, 0, input);
+	input = subMountain(17, 16, 20, input);
+	input = subMountain(15, 0, 4, input);
+	input = subMountain(5, 12, 4, input);
 
-	auto next = input;
-	for (int i = 0; i < 1000; i++)
-	{
-		priority_queue<Point> que;
-		Point top(0, 0, 0);
-
-		for (int y = 0; y < N; y++)
-		{
-			for (int x = 0; x < N; x++)
-			{
-				if (top.h < next[y][x])
-				{
-					top.x = x;
-					top.y = y;
-					top.h = next[y][x];
-				}
-			}
-		}
-
-		if (top.h == 0) break;
-
-		int power = subPower(top.x, top.y, top.h, next, i);
-
-		ans.push_back(format(top.x, top.y, power));
-		next = subMountain(top.x, top.y, power, next);
-	}
-
-	cout << ans.size() << endl;
-	for (const auto& s : ans)
-	{
-		cout << s << endl;
-	}
+	showInput(input);
 
 	return 0;
 }
