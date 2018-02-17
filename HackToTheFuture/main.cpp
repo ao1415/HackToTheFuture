@@ -166,7 +166,7 @@ const int subPower(int x, int y, int h, const Grid& table, int turn) {
 		//‚»‚Ì‚¤‚¿ƒ^[ƒ“ŒW”‚È‚Ç“ü‚ê‚é‚©‚à
 		double score = 0;
 
-		const double c = max((1000 - turn) / 20.0, 1.0);
+		const double c = max((1000 - turn) / 13.0, 1.25);
 
 		for (int yy = 0; yy < N; yy++)
 		{
@@ -175,9 +175,9 @@ const int subPower(int x, int y, int h, const Grid& table, int turn) {
 				//·•ª‚ğ‹‚ß‚é
 				double sub = table[yy][xx] - range(x - xx, y - yy, r + 1);
 
-				if (r >= 65)
+				if (r >= 66)
 				{
-					if (sub < 0) sub *= 100000;
+					if (sub < 0) sub *= 700;
 					score += abs(sub);
 				}
 				else
