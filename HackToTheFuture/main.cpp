@@ -115,7 +115,7 @@ void show(const Grid& grid) {
 	{
 		for (int x = 0; x < N; x++)
 		{
-			cout << grid[y][x] << " ";
+			cout << grid[y][x] << "\t";
 		}
 		cout << endl;
 	}
@@ -205,13 +205,38 @@ int main() {
 		}
 	}
 
+	Grid diff;
+
+	for (int y = 0; y < N; y++)
+	{
+		for (int x = 0; x < N; x++)
+		{
+			const int px = (0 <= x - 1) ? input[y][x - 1] : 0;
+			const int ax = (x - 1 < N) ? input[y][x + 1] : 0;
+			const int py = (0 <= y - 1) ? input[y - 1][x] : 0;
+			const int ay = (y - 1 < N) ? input[y + 1][x] : 0;
+
+			diff[y][x] = 0;
+			if (px <= input[y][x] && input[y][x] >= ax)
+			{
+				if (py <= input[y][x] && input[y][x] >= ay)
+				{
+					diff[y][x] = input[y][x];
+				}
+			}
+
+		}
+	}
+
+	show(diff);
+
+	return 0;
 
 	Answer ans;
 
 	auto next = input;
 	for (int i = 0; i < 1000; i++)
 	{
-		priority_queue<Point> que;
 		Point top(0, 0, 0);
 
 		for (int y = 0; y < N; y++)
