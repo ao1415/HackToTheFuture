@@ -170,7 +170,7 @@ const int subPower(int x, int y, int h, const Grid& table, int turn) {
 			{
 				//ç∑ï™ÇãÅÇﬂÇÈ
 				int sub = table[yy][xx] - range(x - xx, y - yy, r + 1);
-				if (sub < 0) sub *= c;
+				if (sub < 0) sub = static_cast<int>(sub*c);
 				score += abs(sub);
 			}
 		}
@@ -205,43 +205,71 @@ int main() {
 		}
 	}
 
-	Grid diff;
-
-	for (int y = 0; y < N; y++)
-	{
-		for (int x = 0; x < N; x++)
-		{
-			const int px = (0 <= x - 1) ? input[y][x - 1] : 0;
-			const int ax = (x - 1 < N) ? input[y][x + 1] : 0;
-			const int py = (0 <= y - 1) ? input[y - 1][x] : 0;
-			const int ay = (y - 1 < N) ? input[y + 1][x] : 0;
-
-			diff[y][x] = 0;
-			if (px <= input[y][x] && input[y][x] >= ax)
-			{
-				if (py <= input[y][x] && input[y][x] >= ay)
-				{
-					diff[y][x] = input[y][x];
-				}
-			}
-
-		}
-	}
-
-	show(diff);
-
-	return 0;
-
 	Answer ans;
 
 	auto next = input;
-	for (int i = 0; i < 1000; i++)
+	for (int t = 0; t < 1000; t++)
 	{
-		Point top(0, 0, 0);
+		array<int, N> diffx;
+		array<int, N> diffy;
+
+		diffx.fill(0);
+		diffy.fill(0);
 
 		for (int y = 0; y < N; y++)
 		{
 			for (int x = 0; x < N; x++)
+			{
+				const int px = (0 <= x - 1) ? next[y][x - 1] : 0;
+				const int ax = (x - 1 < N) ? next[y][x + 1] : 0;
+				const int py = (0 <= y - 1) ? next[y - 1][x] : 0;
+				const int ay = (y - 1 < N) ? next[y + 1][x] : 0;
+
+				//èc
+				if (px <= next[y][x] && next[y][x] >= ax)
+				{
+					diffx[y]++;
+				}
+				//â°
+				if (py <= next[y][x] && next[y][x] >= ay)
+				{
+					diffy[x]++;
+				}
+			}
+		}
+
+		pair<int, bool> x1{ 0,false };
+		pair<int, bool> x2{ 0,true };
+		pair<int, bool> y1{ 0,false };
+		pair<int, bool> y2{ 0,true };
+
+		for (int i = 0; i < N; i++)
+		{
+			if (diffx[i] > 0)
+			{
+				if (!x1.second)
+				{
+					x1.first = i;
+					x1.second = true;
+				}
+				x2.first = i;
+			}
+			if (diffy[i] > 0)
+			{
+				if (!y1.second)
+				{
+					y1.first = i;
+					y1.second = true;
+				}
+				y2.first = i;
+			}
+		}
+
+		Point top(0, 0, 0);
+
+		for (int y = y1.first; y <= y2.first; y++)
+		{
+			for (int x = x1.first; x <= x2.first; x++)
 			{
 				if (top.h < next[y][x])
 				{
@@ -254,7 +282,7 @@ int main() {
 
 		if (top.h == 0) break;
 
-		int power = subPower(top.x, top.y, top.h, next, i);
+		int power = subPower(top.x, top.y, top.h, next, t);
 
 		ans.push_back(format(top.x, top.y, power));
 		next = subMountain(top.x, top.y, power, next);
