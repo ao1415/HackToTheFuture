@@ -10,7 +10,6 @@
 using namespace std;
 
 const int N = 100;
-const int Inf = 999999999;
 
 template<class Type, size_t Width, size_t Height>
 class FixedGrid {
@@ -115,7 +114,7 @@ void show(const Grid& grid) {
 	{
 		for (int x = 0; x < N; x++)
 		{
-			cout << grid[y][x] << "\t";
+			cout << grid[y][x] << " ";
 		}
 		cout << endl;
 	}
@@ -148,49 +147,29 @@ Grid subMountain(int x, int y, int h, const Grid& table) {
 	return next;
 }
 
-const int subPower(int x, int y, int h, const Grid& table, int turn) {
+const int subPower(int x, int y, int h, const Grid& table) {
 
 	const int power = clamp(h);
 
 	const int r = power - 1;
 	int diff = 0;
 
-	const auto getScore = [&](int r) {
-
-		//全体的な差分
-		//小さいほど理想的になる
-		//そのうちターン係数など入れるかも
-		int score = 0;
-
-		const double c = max((1000 - turn) / 20, 1);
-
-		for (int yy = 0; yy < N; yy++)
-		{
-			for (int xx = 0; xx < N; xx++)
-			{
-				//差分を求める
-				int sub = table[yy][xx] - range(x - xx, y - yy, r + 1);
-				if (sub < 0) sub = static_cast<int>(sub*c);
-				score += abs(sub);
-			}
-		}
-
-		return score;
-	};
-
-	int minScore = getScore(r);
-	int best = r;
-	for (int p = r - 1; p >= 0; p--)
+	for (int dy = -r; dy <= r; dy++)
 	{
-		const int score = getScore(p);
-		if (minScore > score)
+		for (int dx = -r; dx <= r; dx++)
 		{
-			minScore = score;
-			best = p;
+			int px = x + dx;
+			int py = y + dy;
+
+			if (inside(px) && inside(py))
+			{
+				const int sub = table[py][px] - range(dx, dy, power);
+				diff = min(diff, sub);
+			}
 		}
 	}
 
-	return best + 1;
+	return power + diff;
 }
 
 int main() {
@@ -205,71 +184,18 @@ int main() {
 		}
 	}
 
+
 	Answer ans;
 
 	auto next = input;
-	for (int t = 0; t < 1000; t++)
+	for (int i = 0; i < 1000; i++)
 	{
-		array<int, N> diffx;
-		array<int, N> diffy;
-
-		diffx.fill(0);
-		diffy.fill(0);
+		priority_queue<Point> que;
+		Point top(0, 0, 0);
 
 		for (int y = 0; y < N; y++)
 		{
 			for (int x = 0; x < N; x++)
-			{
-				const int px = (0 <= x - 1) ? next[y][x - 1] : 0;
-				const int ax = (x - 1 < N) ? next[y][x + 1] : 0;
-				const int py = (0 <= y - 1) ? next[y - 1][x] : 0;
-				const int ay = (y - 1 < N) ? next[y + 1][x] : 0;
-
-				//縦
-				if (px <= next[y][x] && next[y][x] >= ax)
-				{
-					diffx[y]++;
-				}
-				//横
-				if (py <= next[y][x] && next[y][x] >= ay)
-				{
-					diffy[x]++;
-				}
-			}
-		}
-
-		pair<int, bool> x1{ 0,false };
-		pair<int, bool> x2{ 0,true };
-		pair<int, bool> y1{ 0,false };
-		pair<int, bool> y2{ 0,true };
-
-		for (int i = 0; i < N; i++)
-		{
-			if (diffx[i] > 0)
-			{
-				if (!x1.second)
-				{
-					x1.first = i;
-					x1.second = true;
-				}
-				x2.first = i;
-			}
-			if (diffy[i] > 0)
-			{
-				if (!y1.second)
-				{
-					y1.first = i;
-					y1.second = true;
-				}
-				y2.first = i;
-			}
-		}
-
-		Point top(0, 0, 0);
-
-		for (int y = y1.first; y <= y2.first; y++)
-		{
-			for (int x = x1.first; x <= x2.first; x++)
 			{
 				if (top.h < next[y][x])
 				{
@@ -282,7 +208,7 @@ int main() {
 
 		if (top.h == 0) break;
 
-		int power = subPower(top.x, top.y, top.h, next, t);
+		int power = subPower(top.x, top.y, top.h, next);
 
 		ans.push_back(format(top.x, top.y, power));
 		next = subMountain(top.x, top.y, power, next);
