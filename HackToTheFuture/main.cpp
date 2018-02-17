@@ -10,6 +10,7 @@
 using namespace std;
 
 const int N = 100;
+const int Inf = 999999999;
 
 template<class Type, size_t Width, size_t Height>
 class FixedGrid {
@@ -147,29 +148,49 @@ Grid subMountain(int x, int y, int h, const Grid& table) {
 	return next;
 }
 
-const int subPower(int x, int y, int h, const Grid& table) {
+const int subPower(int x, int y, int h, const Grid& table, int turn) {
 
 	const int power = clamp(h);
 
 	const int r = power - 1;
 	int diff = 0;
 
-	for (int dy = -r; dy <= r; dy++)
-	{
-		for (int dx = -r; dx <= r; dx++)
-		{
-			int px = x + dx;
-			int py = y + dy;
+	const auto getScore = [&](int r) {
 
-			if (inside(px) && inside(py))
+		//全体的な差分
+		//小さいほど理想的になる
+		//そのうちターン係数など入れるかも
+		int score = 0;
+
+		const double c = max((1000 - turn) / 20, 1);
+
+		for (int yy = 0; yy < N; yy++)
+		{
+			for (int xx = 0; xx < N; xx++)
 			{
-				const int sub = table[py][px] - range(dx, dy, power);
-				diff = min(diff, sub);
+				//差分を求める
+				int sub = table[yy][xx] - range(x - xx, y - yy, r + 1);
+				if (sub < 0) sub *= c;
+				score += abs(sub);
 			}
+		}
+
+		return score;
+	};
+
+	int minScore = getScore(r);
+	int best = r;
+	for (int p = r - 1; p >= 0; p--)
+	{
+		const int score = getScore(p);
+		if (minScore > score)
+		{
+			minScore = score;
+			best = p;
 		}
 	}
 
-	return power + diff;
+	return best + 1;
 }
 
 int main() {
@@ -208,7 +229,7 @@ int main() {
 
 		if (top.h == 0) break;
 
-		int power = subPower(top.x, top.y, top.h, next);
+		int power = subPower(top.x, top.y, top.h, next, i);
 
 		ans.push_back(format(top.x, top.y, power));
 		next = subMountain(top.x, top.y, power, next);
