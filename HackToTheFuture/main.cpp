@@ -270,7 +270,7 @@ private:
 	/// <summary>
 	/// é¿çséûä‘(ms)
 	/// </summary>
-	const int T = 5500;
+	const int T = 5950;
 
 	const double TempStart = 10000.0;
 	const double TempEnd = 0.0001;
@@ -727,6 +727,8 @@ public:
 		int bestScore = score;
 		Answer best = ans;
 
+		//cerr << score << endl;
+
 		Timer timer(chrono::milliseconds(this->T));
 
 		int count = 0;
@@ -735,26 +737,25 @@ public:
 		while (!timer)
 		{
 			const auto diff = timer.diff();
-			count += 100;
 
 			for (int i = 0; i < 100; i++)
 			{
+				count += 1;
 				const int index = random.rand() % 1000;
 
 				const int patt = random.rand() % 6;
 
-				int diffScore;
-
 				if (patt < 4)
 				{
-					diffScore = moveScore(ans[index], patt, table);
+					int diffScore = moveScore(ans[index], patt, table);
 
 					if (diffScore != Inf && probability(diffScore, diff))
 					{
 						move(ans[index], patt, table);
 
 						score += diffScore;
-						if (bestScore > score)
+
+						if (bestScore < score)
 						{
 							best = ans;
 							bestScore = score;
@@ -765,14 +766,15 @@ public:
 				else
 				{
 					const int h = (patt == 4 ? -1 : 1);
-					diffScore = incScore(ans[index], h, table);
+					int diffScore = incScore(ans[index], h, table);
 
 					if (diffScore != Inf && probability(diffScore, diff))
 					{
 						inc(ans[index], h, table);
 
 						score += diffScore;
-						if (bestScore > score)
+
+						if (bestScore < score)
 						{
 							best = ans;
 							bestScore = score;
@@ -786,6 +788,8 @@ public:
 		}
 
 		//cerr << count << endl;
+
+		//cerr << bestScore << endl;
 
 		return best;
 	}
