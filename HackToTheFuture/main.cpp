@@ -7,6 +7,7 @@
 #include <stack>
 #include <map>
 #include <cmath>
+#include <chrono>
 
 using namespace std;
 
@@ -71,8 +72,127 @@ public:
 
 };
 
-using Grid = FixedGrid<int, N, N>;
-using Answer = vector<string>;
+/// <summary>
+/// 一定時間の経過したか確認するクラス
+/// </summary>
+class Timer {
+public:
+
+	/// <summary>
+	/// コンストラクタ
+	/// </summary>
+	Timer() = default;
+	/// <summary>
+	/// コンストラクタ
+	/// </summary>
+	/// <param name="_time">設定時間(ナノ秒)</param>
+	Timer(const std::chrono::nanoseconds& _time) { type = Type::nanoseconds; time = _time.count(); }
+	/// <summary>
+	/// コンストラクタ
+	/// </summary>
+	/// <param name="_time">設定時間(マイクロ秒)</param>
+	Timer(const std::chrono::microseconds& _time) { type = Type::microseconds; time = _time.count(); }
+	/// <summary>
+	/// コンストラクタ
+	/// </summary>
+	/// <param name="_time">設定時間(ミリ秒)</param>
+	Timer(const std::chrono::milliseconds& _time) { type = Type::milliseconds; time = _time.count(); }
+	/// <summary>
+	/// コンストラクタ
+	/// </summary>
+	/// <param name="_time">設定時間(秒)</param>
+	Timer(const std::chrono::seconds& _time) { type = Type::seconds; time = _time.count(); }
+	/// <summary>
+	/// コンストラクタ
+	/// </summary>
+	/// <param name="_time">設定時間(分)</param>
+	Timer(const std::chrono::minutes& _time) { type = Type::minutes; time = _time.count(); }
+	/// <summary>
+	/// コンストラクタ
+	/// </summary>
+	/// <param name="_time">設定時間(時)</param>
+	Timer(const std::chrono::hours& _time) { type = Type::hours; time = _time.count(); }
+
+	/// <summary>
+	/// 時間を設定する
+	/// </summary>
+	/// <param name="_time">設定時間(ナノ秒)</param>
+	void set(const std::chrono::nanoseconds& _time) { type = Type::nanoseconds; time = _time.count(); }
+	/// <summary>
+	/// 時間を設定する
+	/// </summary>
+	/// <param name="_time">設定時間(マイクロ秒)</param>
+	void set(const std::chrono::microseconds& _time) { type = Type::microseconds; time = _time.count(); }
+	/// <summary>
+	/// 時間を設定する
+	/// </summary>
+	/// <param name="_time">設定時間(ミリ秒)</param>
+	void set(const std::chrono::milliseconds& _time) { type = Type::milliseconds; time = _time.count(); }
+	/// <summary>
+	/// 時間を設定する
+	/// </summary>
+	/// <param name="_time">設定時間(秒)</param>
+	void set(const std::chrono::seconds& _time) { type = Type::seconds; time = _time.count(); }
+	/// <summary>
+	/// 時間を設定する
+	/// </summary>
+	/// <param name="_time">設定時間(分</param>
+	void set(const std::chrono::minutes& _time) { type = Type::minutes; time = _time.count(); }
+	/// <summary>
+	/// 時間を設定する
+	/// </summary>
+	/// <param name="_time">設定時間(時)</param>
+	void set(const std::chrono::hours& _time) { type = Type::hours; time = _time.count(); }
+
+	/// <summary>
+	/// タイマーを開始させる
+	/// </summary>
+	void start() { s = std::chrono::high_resolution_clock::now(); }
+
+	inline long long diff() const {
+		const auto e = std::chrono::high_resolution_clock::now();
+		switch (type)
+		{
+		case Type::nanoseconds: return std::chrono::duration_cast<std::chrono::nanoseconds>(e - s).count();
+		case Type::microseconds: return std::chrono::duration_cast<std::chrono::microseconds>(e - s).count();
+		case Type::milliseconds: return std::chrono::duration_cast<std::chrono::milliseconds>(e - s).count();
+		case Type::seconds: return std::chrono::duration_cast<std::chrono::seconds>(e - s).count();
+		case Type::minutes: return std::chrono::duration_cast<std::chrono::minutes>(e - s).count();
+		case Type::hours: return std::chrono::duration_cast<std::chrono::hours>(e - s).count();
+		default: return true;
+		}
+	}
+
+	/// <summary>
+	/// 設定時間経過したかを得る
+	/// </summary>
+	/// <returns>経過していれば true, それ以外は false</returns>
+	inline const bool check() const {
+		return diff() >= time;
+	}
+
+	/// <summary>
+	/// 設定時間経過したかを得る
+	/// </summary>
+	/// <returns>経過していれば true, それ以外は false</returns>
+	operator bool() const { return check(); }
+
+private:
+
+	enum class Type {
+		nanoseconds,
+		microseconds,
+		milliseconds,
+		seconds,
+		minutes,
+		hours
+	};
+
+	std::chrono::time_point<std::chrono::high_resolution_clock> s;
+	long long time;
+	Type type;
+
+};
 
 struct Point {
 	int x;
@@ -96,6 +216,21 @@ struct Point {
 	}
 
 };
+
+struct XorShift {
+	unsigned int x;
+	XorShift() : x(2463534242U) {}
+	unsigned int rand() {
+		x ^= (x << 13);
+		x ^= (x >> 17);
+		x ^= (x << 5);
+		return x;
+	}
+
+};
+
+using Grid = FixedGrid<int, N, N>;
+using Answer = array<Point, 1000>;
 
 const string format(int x, int y, int h) {
 	return to_string(x) + " " + to_string(y) + " " + to_string(h);
@@ -129,98 +264,533 @@ void show(const Grid& grid) {
 const int directionX[] = { 0,-1,1,0 };
 const int directionY[] = { -1,0,0,1 };
 
-Grid subMountain(int x, int y, int h, const Grid& table) {
+class Annealing {
+private:
 
-	Grid next(table);
+	/// <summary>
+	/// 実行時間(ms)
+	/// </summary>
+	const int T = 5500;
 
-	const int r = h - 1;
+	const double TempStart = 10000.0;
+	const double TempEnd = 0.0001;
+	const double Time = T;
+	const double TempDiff = (TempStart - TempEnd) / Time;
 
-	for (int dy = -r; dy <= r; dy++)
-	{
-		for (int dx = -r; dx <= r; dx++)
-		{
-			int px = x + dx;
-			int py = y + dy;
+	XorShift random;
+	int size;
 
-			if (inside(px) && inside(py))
-			{
-				next[py][px] -= range(dx, dy, h);
-			}
-		}
+	bool probability(const double& diff, const long long& t) {
+
+		if (diff > 0) return true;
+
+		const double temp = TempStart - TempDiff * t;
+
+		const double p = exp(diff / temp) * 4294967295.0;
+
+		return p > random.rand();
 	}
 
-	return next;
-}
+	int result(const Grid& table, int t = 0) {
 
-const int subPower(int x, int y, int h, const Grid& table, int turn) {
+		int score = 200000000;
 
-	const int power = clamp(h);
-
-	const int mr = power - 1;
-	int diff = 0;
-
-	const auto getScore = [&](int r) {
-
-		//全体的な差分
-		//小さいほど理想的になる
-		//そのうちターン係数など入れるかも
-		double score = 0;
-
-		const double c = max((1000 - turn) / 13.0, 1.25);
-
-		for (int yy = 0; yy < N; yy++)
+		for (int y = 0; y < N; y++)
 		{
-			for (int xx = 0; xx < N; xx++)
+			for (int x = 0; x < N; x++)
 			{
-				//差分を求める
-				double sub = table[yy][xx] - range(x - xx, y - yy, r + 1);
-
-				if (r >= 66)
-				{
-					if (sub < 0) sub *= 700;
-					score += abs(sub);
-				}
-				else
-				{
-					if (sub < 0) sub *= c;
-					score += abs(sub);
-				}
+				score -= abs(table[y][x]);
+				//if (table[y][x] < -100) cout << t << ":" << table[y][x] << endl;
 			}
 		}
 
 		return score;
-	};
+	}
 
-	double minScore = getScore(mr);
-	int best = mr;
-	for (int p = mr - 1; p >= 0; p--)
-	{
-		const double score = getScore(p);
-		if (minScore >= score)
+	void sub(const Point& pos, Grid& table) {
+
+		const int r = pos.h - 1;
+
+		for (int dy = -r; dy <= r; dy++)
 		{
-			minScore = score;
-			best = p;
+			for (int dx = -r; dx <= r; dx++)
+			{
+				int px = pos.x + dx;
+				int py = pos.y + dy;
+
+				if (inside(px) && inside(py))
+				{
+					table[py][px] -= range(dx, dy, pos.h);
+				}
+			}
 		}
 	}
 
-	return best + 1;
-}
+	void move(Point& pos, const int direction, Grid& table) {
 
-int result(const Grid& table, int t) {
+		const int r = pos.h - 1;
 
-	int score = 200000000;
-
-	for (int y = 0; y < N; y++)
-	{
-		for (int x = 0; x < N; x++)
+		switch (direction)
 		{
-			score -= abs(table[y][x]);
-			//if (table[y][x] < -100) cout << t << ":" << table[y][x] << endl;
+			//上
+		case 0:
+
+			for (int dy = -r; dy <= 0; dy++)
+			{
+				for (int dx = -r; dx <= r; dx++)
+				{
+					int px = pos.x + dx + directionX[direction];
+					int py = pos.y + dy + directionY[direction];
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+							table[py][px] -= 1;
+					}
+				}
+			}
+
+			for (int dy = 0; dy <= r; dy++)
+			{
+				for (int dx = -r; dx <= r; dx++)
+				{
+					int px = pos.x + dx;
+					int py = pos.y + dy;
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+							table[py][px] += 1;
+					}
+				}
+			}
+
+			break;
+			//左
+		case 1:
+
+			for (int dy = -r; dy <= r; dy++)
+			{
+				for (int dx = -r; dx <= 0; dx++)
+				{
+					int px = pos.x + dx + directionX[direction];
+					int py = pos.y + dy + directionY[direction];
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+							table[py][px] -= 1;
+					}
+				}
+			}
+
+			for (int dy = -r; dy <= r; dy++)
+			{
+				for (int dx = 0; dx <= r; dx++)
+				{
+					int px = pos.x + dx;
+					int py = pos.y + dy;
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+							table[py][px] += 1;
+					}
+				}
+			}
+
+			break;
+			//右
+		case 2:
+
+			for (int dy = -r; dy <= r; dy++)
+			{
+				for (int dx = -r; dx <= 0; dx++)
+				{
+					int px = pos.x + dx;
+					int py = pos.y + dy;
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+							table[py][px] += 1;
+					}
+				}
+			}
+
+			for (int dy = -r; dy <= r; dy++)
+			{
+				for (int dx = 0; dx <= r; dx++)
+				{
+					int px = pos.x + dx + directionX[direction];
+					int py = pos.y + dy + directionY[direction];
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+							table[py][px] -= 1;
+					}
+				}
+			}
+
+			break;
+			//下
+		case 3:
+
+			for (int dy = -r; dy <= 0; dy++)
+			{
+				for (int dx = -r; dx <= r; dx++)
+				{
+					int px = pos.x + dx;
+					int py = pos.y + dy;
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+							table[py][px] += 1;
+					}
+				}
+			}
+
+			for (int dy = 0; dy <= r; dy++)
+			{
+				for (int dx = -r; dx <= r; dx++)
+				{
+					int px = pos.x + dx + directionX[direction];
+					int py = pos.y + dy + directionY[direction];
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+							table[py][px] -= 1;
+					}
+				}
+			}
+
+			break;
 		}
+
+		pos.x += directionX[direction];
+		pos.y += directionY[direction];
+
 	}
 
-	return score;
-}
+	void inc(Point& pos, const int h, Grid& table) {
+
+		const int r = pos.h + h - 1;
+
+		for (int dy = -r; dy <= r; dy++)
+		{
+			for (int dx = -r; dx <= r; dx++)
+			{
+				int px = pos.x + dx;
+				int py = pos.y + dy;
+
+				if (inside(px) && inside(py))
+				{
+					if (abs(dx) + abs(dy) <= r)
+						table[py][px] -= h;
+				}
+			}
+		}
+
+		pos.h += h;
+	}
+
+	int moveScore(const Point& pos, const int direction, const Grid& table) const {
+
+		if (!(inside(pos.x + directionX[direction]) && inside(pos.y + directionY[direction]))) return Inf;
+
+		const int r = pos.h - 1;
+		int nowScore = 0;
+		int nextScore = 0;
+
+		switch (direction)
+		{
+			//上
+		case 0:
+
+			for (int dy = -r; dy <= 0; dy++)
+			{
+				for (int dx = -r; dx <= r; dx++)
+				{
+					int px = pos.x + dx + directionX[direction];
+					int py = pos.y + dy + directionY[direction];
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+						{
+							nowScore += abs(table[py][px]);
+							nextScore += abs(table[py][px] - 1);
+						}
+					}
+				}
+			}
+
+			for (int dy = 0; dy <= r; dy++)
+			{
+				for (int dx = -r; dx <= r; dx++)
+				{
+					int px = pos.x + dx;
+					int py = pos.y + dy;
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+						{
+							nowScore += abs(table[py][px]);
+							nextScore += abs(table[py][px] + 1);
+						}
+					}
+				}
+			}
+
+			break;
+			//左
+		case 1:
+
+			for (int dy = -r; dy <= r; dy++)
+			{
+				for (int dx = -r; dx <= 0; dx++)
+				{
+					int px = pos.x + dx + directionX[direction];
+					int py = pos.y + dy + directionY[direction];
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+						{
+							nowScore += abs(table[py][px]);
+							nextScore += abs(table[py][px] - 1);
+						}
+					}
+				}
+			}
+
+			for (int dy = -r; dy <= r; dy++)
+			{
+				for (int dx = 0; dx <= r; dx++)
+				{
+					int px = pos.x + dx;
+					int py = pos.y + dy;
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+						{
+							nowScore += abs(table[py][px]);
+							nextScore += abs(table[py][px] + 1);
+						}
+					}
+				}
+			}
+
+			break;
+			//右
+		case 2:
+
+			for (int dy = -r; dy <= r; dy++)
+			{
+				for (int dx = -r; dx <= 0; dx++)
+				{
+					int px = pos.x + dx;
+					int py = pos.y + dy;
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+						{
+							nowScore += abs(table[py][px]);
+							nextScore += abs(table[py][px] + 1);
+						}
+					}
+				}
+			}
+
+			for (int dy = -r; dy <= r; dy++)
+			{
+				for (int dx = 0; dx <= r; dx++)
+				{
+					int px = pos.x + dx + directionX[direction];
+					int py = pos.y + dy + directionY[direction];
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+						{
+							nowScore += abs(table[py][px]);
+							nextScore += abs(table[py][px] - 1);
+						}
+					}
+				}
+			}
+
+			break;
+			//下
+		case 3:
+
+			for (int dy = -r; dy <= 0; dy++)
+			{
+				for (int dx = -r; dx <= r; dx++)
+				{
+					int px = pos.x + dx;
+					int py = pos.y + dy;
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+						{
+							nowScore += abs(table[py][px]);
+							nextScore += abs(table[py][px] + 1);
+						}
+					}
+				}
+			}
+
+			for (int dy = 0; dy <= r; dy++)
+			{
+				for (int dx = -r; dx <= r; dx++)
+				{
+					int px = pos.x + dx + directionX[direction];
+					int py = pos.y + dy + directionY[direction];
+
+					if (inside(px) && inside(py))
+					{
+						if (abs(dx) + abs(dy) <= r)
+						{
+							nowScore += abs(table[py][px]);
+							nextScore += abs(table[py][px] - 1);
+						}
+					}
+				}
+			}
+
+			break;
+		}
+
+		return nowScore - nextScore;
+	}
+
+	int incScore(const Point& pos, const int h, const Grid& table) const {
+
+		if (pos.h + h < 1 || pos.h + h > 100) return Inf;
+
+		const int r = pos.h + h - 1;
+		int nowScore = 0;
+		int nextScore = 0;
+
+		for (int dy = -r; dy <= r; dy++)
+		{
+			for (int dx = -r; dx <= r; dx++)
+			{
+				int px = pos.x + dx;
+				int py = pos.y + dy;
+
+				if (inside(px) && inside(py))
+				{
+					if (abs(dx) + abs(dy) <= r)
+					{
+						nowScore += abs(table[py][px]);
+						nextScore += abs(table[py][px] - h);
+					}
+				}
+			}
+		}
+
+		return nowScore - nextScore;
+	}
+
+public:
+
+	Answer think(const Grid& grid) {
+
+		Answer ans;
+
+		XorShift random;
+
+		for (auto& p : ans)
+		{
+			p.x = random.rand() % 100;
+			p.y = random.rand() % 100;
+			p.h = random.rand() % 100 + 1;
+		}
+
+		Grid table = grid;
+
+		for (const auto& pos : ans)
+		{
+			sub(pos, table);
+		}
+
+		int score = result(table);
+		int bestScore = score;
+		Answer best = ans;
+
+		Timer timer(chrono::milliseconds(this->T));
+
+		int count = 0;
+
+		timer.start();
+		while (!timer)
+		{
+			const auto diff = timer.diff();
+			count += 100;
+
+			for (int i = 0; i < 100; i++)
+			{
+				const int index = random.rand() % 1000;
+
+				const int patt = random.rand() % 6;
+
+				int diffScore;
+
+				if (patt < 4)
+				{
+					diffScore = moveScore(ans[index], patt, table);
+
+					if (diffScore != Inf && probability(diffScore, diff))
+					{
+						move(ans[index], patt, table);
+
+						score += diffScore;
+						if (bestScore > score)
+						{
+							best = ans;
+							bestScore = score;
+						}
+
+					}
+				}
+				else
+				{
+					const int h = (patt == 4 ? -1 : 1);
+					diffScore = incScore(ans[index], h, table);
+
+					if (diffScore != Inf && probability(diffScore, diff))
+					{
+						inc(ans[index], h, table);
+
+						score += diffScore;
+						if (bestScore > score)
+						{
+							best = ans;
+							bestScore = score;
+						}
+
+					}
+				}
+
+			}
+
+		}
+
+		//cerr << count << endl;
+
+		return best;
+	}
+
+};
 
 int main() {
 
@@ -234,98 +804,15 @@ int main() {
 		}
 	}
 
+	Annealing ai;
 
-	struct Data {
-		int score;
-		Grid table;
-		Answer ans;
+	const auto& ans = ai.think(input);
 
-		const bool operator<(const Data& o) const {
-			return score < o.score;
-		}
-	};
+	cout << ans.size() << endl;
 
-	priority_queue<Data> que;
-	que.push(Data{ result(input,0),input ,Answer() });
-
-	for (int t = 0; t < 1000; t++)
+	for (const auto& p : ans)
 	{
-		priority_queue<Data> next;
-
-		for (int i = 0; i < 1; i++)
-		{
-			if (!que.empty())
-			{
-				const auto top = que.top();
-				que.pop();
-
-				priority_queue<Point> topList;
-
-				Point max1(0, 0, 0);
-				Point max2(0, 0, 0);
-				for (int y = 0; y < N; y++)
-				{
-					for (int x = 0; x < N; x++)
-					{
-						if (max1.h < top.table[y][x])
-						{
-							max1.x = x;
-							max1.y = y;
-							max1.h = top.table[y][x];
-						}
-						if (max2.h <= top.table[y][x])
-						{
-							max2.x = x;
-							max2.y = y;
-							max2.h = top.table[y][x];
-							topList.push(max2);
-						}
-					}
-				}
-
-				{
-					vector<Point> list;
-					while (!topList.empty())
-					{
-						if (topList.top().h != max1.h) break;
-
-						list.push_back(topList.top());
-						topList.pop();
-					}
-					max2 = list[list.size() / 2];
-				}
-
-				{
-					const int h = subPower(max1.x, max1.y, max1.h, top.table, t);
-					const auto& table = subMountain(max1.x, max1.y, h, top.table);
-					const int score = result(table, t);
-					Answer ans = top.ans;
-					ans.push_back(format(max1.x, max1.y, h));
-					next.push(Data{ score,table, ans });
-				}
-				if (!(max1 == max2)) {
-					const int h = subPower(max2.x, max2.y, max2.h, top.table, t);
-					const auto& table = subMountain(max2.x, max2.y, h, top.table);
-					const int score = result(table, t);
-					Answer ans = top.ans;
-					ans.push_back(format(max2.x, max2.y, h));
-					next.push(Data{ score,table, ans });
-				}
-
-			}
-		}
-		que.swap(next);
-	}
-
-	{
-		const auto& ans = que.top().ans;
-
-		cout << ans.size() << endl;
-		for (const auto& s : ans)
-		{
-			cout << s << endl;
-		}
-
+		cout << p.x << " " << p.y << " " << p.h << endl;
 	}
 
 	return 0;
